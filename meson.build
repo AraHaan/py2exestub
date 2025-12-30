@@ -20,7 +20,7 @@ _resourceediting = py.extension_module(
     include_directories: [include_directories('src/py2exestub')],
     # c_args: limited_api_args,
     subdir: 'py2exestub',
-    limited_api: '3.12',
+    limited_api: '3.9',
 )
 
 # ----------------------------------------------------

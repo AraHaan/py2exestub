@@ -18,6 +18,12 @@ DECLARE_MODULE(_memimporter);
 DECLARE_MODULE(audioop);
 #endif
 
+#if (PY_VERSION_HEX < 0x030A0000)
+static int Py_IsNone(PyObject *x) {
+    return x == Py_None;
+}
+#endif
+
 static int __cdecl AddZipExtImportHook() {
   // inject zipextimporter here to allow loading of pyd files from a zip file.
   PyObject *zipextimporter = PyImport_ImportModule("zipextimporter");

@@ -9,7 +9,7 @@ limited-api = true
 name = "py2exestub"
 version = "0.1.0"
 description = "Embeds Python 3.12+ projects into a single stand alone exe which is actually implemented like an SFX exe."
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 authors = [
     { name = "AraHaan" }
 ]
@@ -18,13 +18,22 @@ dependencies = [
 ]
 license = { text = "MIT" }
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: C",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Operating System :: Microsoft :: Windows",
-    "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Software Distribution",
+    "Topic :: Utilities",
 ]
