@@ -36,12 +36,12 @@ embed = executable(
     'embed',
     [
         'src/py2exestub/embed.c',
-        '../py2exe/source/_memimporter.c',
-        '../py2exe/source/actctx.c',
-        '../py2exe/source/import_mini.c',
-        '../py2exe/source/MemoryModule.c',
-        '../py2exe/source/MyLoadLibrary.c',
-        '../audioop/audioop.c',
+        'externals/py2exe/source/_memimporter.c',
+        'externals/py2exe/source/actctx.c',
+        'externals/py2exe/source/import_mini.c',
+        'externals/py2exe/source/MemoryModule.c',
+        'externals/py2exe/source/MyLoadLibrary.c',
+        'externals/audioop/audioop.c',
         embed_res
     ],
     install: true,
@@ -64,11 +64,11 @@ stub = executable(
     'stub',
     [
         'src/py2exestub/stub.c',
-        '../miniz-3.0.2/miniz.c',
+        'externals/miniz-3.1.0/miniz.c',
         stub_res
     ],
     install: true,
-    include_directories: [include_directories('../miniz-3.0.2'), include_directories('src/py2exestub')],
+    include_directories: [include_directories('externals/miniz-3.1.0'), include_directories('src/py2exestub')],
     install_dir: py.get_install_dir() / 'py2exestub',
     win_subsystem: 'windows',
 )
