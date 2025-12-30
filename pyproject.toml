@@ -13,6 +13,9 @@ requires-python = ">=3.12"
 authors = [
     { name = "AraHaan" }
 ]
+dependencies = [
+    "uv"
+]
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",

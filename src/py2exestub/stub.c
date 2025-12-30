@@ -64,8 +64,8 @@ static int extract_zip(_In_ HINSTANCE hInstance, const void *pMem, DWORD size, c
     }
 
     memset(state->file_path, 0, sizeof(state->file_path));
-    _snwprintf_s(state->file_path, MAX_LONG_PATH - 1, MAX_LONG_PATH, "%s\\%hs", extract_to, file_stat.m_filename);
-    FILE *f = _wfopen(state->file_path, "wbx");
+    _snwprintf_s(state->file_path, MAX_LONG_PATH - 1, MAX_LONG_PATH, L"%s\\%hs", extract_to, file_stat.m_filename);
+    FILE *f = _wfopen(state->file_path, L"wbx");
     if (f == NULL) {
       DWORD fileAttr = GetFileAttributesW(state->file_path);
       if (fileAttr == INVALID_FILE_ATTRIBUTES) {
@@ -123,6 +123,10 @@ _Success_(return != NULL) static LPWSTR __cdecl InternalLoadStringW(_In_opt_ HIN
   return buf;
 }
 
+static int ErrorMsgBox(_In_ LPCWSTR msg) {
+  return MessageBoxW(NULL, msg, L"Error!", MB_ICONERROR | MB_OK);
+}
+
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ PWSTR pCmdLine, _In_ int nCmdShow) {
   int result = EXIT_SUCCESS;
   stub_state *state = malloc(sizeof(stub_state));
@@ -136,7 +140,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     goto end;
   }
 
-  state->current_directory[nChars] = '\\';
+  state->current_directory[nChars] = L'\\';
 
   // Path to the executable in the temp folder
   state->console_title = InternalLoadStringW(hInstance, IDS_STRING1);
@@ -145,8 +149,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
   state->si.wShowWindow = SW_SHOW;
   state->si.dwFlags = STARTF_PREVENTPINNING | STARTF_USESHOWWINDOW;
   set_folder(state);
-  _snwprintf_s(state->exe_path, MAX_LONG_PATH - 1, MAX_LONG_PATH, "%s\\%s.exe", state->temp_folder, state->program_name);
-  _snwprintf_s(state->exe_args, MAX_PATH - 1, MAX_PATH, "--console-title \"%s\" -m %s", state->console_title, state->program_name);
+  _snwprintf_s(state->exe_path, MAX_LONG_PATH - 1, MAX_LONG_PATH, L"%s\\%s.exe", state->temp_folder, state->program_name);
+  _snwprintf_s(state->exe_args, MAX_PATH - 1, MAX_PATH, L"--console-title \"%s\" -m %s", state->console_title, state->program_name);
   state->si.cb = sizeof(state->si);
 
   // Create temporary folder
@@ -166,7 +170,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
   // Run the executable
   if (!CreateProcessW(state->exe_path, state->exe_args, NULL, NULL, FALSE, 0, NULL, state->current_directory, &state->si, &state->pi)) {
-    _snwprintf_s(state->err_msg, (sizeof(state->err_msg) / sizeof(wchar_t)) - 1, sizeof(state->err_msg) / sizeof(wchar_t), "'CreateProcessW' failed with error code: %u", GetLastError());
+    _snwprintf_s(state->err_msg, (sizeof(state->err_msg) / sizeof(wchar_t)) - 1, sizeof(state->err_msg) / sizeof(wchar_t), L"'CreateProcessW' failed with error code: %u", GetLastError());
     ErrorMsgBox(state->err_msg);
     result = EXIT_FAILURE;
     goto end;
