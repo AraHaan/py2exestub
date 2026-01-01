@@ -3,9 +3,10 @@ add_project_arguments(['-D_CRT_SECURE_NO_WARNINGS', '-D_UNICODE', '-DUNICODE'], 
 
 py = import('python').find_installation(pure: false)
 windows = import('windows')
+fs = import('fs')
 
 # Optional: enable Py_LIMITED_API for the embed exe
-limited_api_args = ['-DPy_LIMITED_API=0x030C0000']
+limited_api_args = ['-DPy_LIMITED_API=0x03090000']
 
 # ----------------------------------------------------
 # 1. Build _resourceediting
@@ -36,18 +37,12 @@ embed = executable(
     'embed',
     [
         'src/py2exestub/embed.c',
-        'externals/py2exe/source/_memimporter.c',
-        'externals/py2exe/source/actctx.c',
-        'externals/py2exe/source/import_mini.c',
-        'externals/py2exe/source/MemoryModule.c',
-        'externals/py2exe/source/MyLoadLibrary.c',
-        'externals/audioop/audioop.c',
         embed_res
     ],
     install: true,
-    include_directories: [include_directories('src/py2exestub')],
-    c_args: ['-DSTANDALONE', '-DPy_BUILD_CORE_MODULE', '-DEMBEDDED_PYTHON', '-DEMBED_MEMIMPORTER'],
-    dependencies: py.dependency(embed: true),
+    include_directories: [include_directories(fs.parent(py.full_path()) / 'Include'), include_directories('src/py2exestub')],
+    c_args: limited_api_args,
+    link_args: ['/LIBPATH:' + fs.parent(py.full_path()) / 'libs'],
     install_dir: py.get_install_dir() / 'py2exestub',
 )
 

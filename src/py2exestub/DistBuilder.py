@@ -80,27 +80,7 @@ class DistBuilder:
         subprocess.check_output(['py', 'install', version], text=True)
         subprocess.check_output([
             'py', f'-{version}', '-m', 'pip', 'install', '--upgrade', '-r', requirements_file,
-            '-t', os.path.join(target_dir, 'tmp-packages')], text=True)
-
-        # this is used to filter out any packages with "audioop" in the name.
-        # this is because the audioop module is embedded inside the embed exe
-        # making the packages useless and problematic.
-        frozen_packages = subprocess.check_output([
-            'py', f'-{version}', '-m', 'uv', 'pip', 'freeze',
-            '--target', os.path.join(target_dir, 'tmp-packages')], text=True).splitlines()
-        frozen_packages = [package for package in frozen_packages
-                           if not package.startswith('audioop') and not package.startswith(
-                            f'Using Python {version} environment at:')]
-        shutil.rmtree(os.path.join(target_dir, 'tmp-packages'), ignore_errors=True)
-
-        # Write requirements to a temp file
-        req = os.path.join(target_dir, "requirements.txt")
-        with open(req, "w", encoding="utf-8") as f:
-            f.write('\n'.join(frozen_packages) + '\n')
-
-        subprocess.check_output([
-            'py', f'-{version}', '-m', 'pip', 'install', '-r', req,
-            '-t', os.path.join(target_dir, 'site-packages'), '--no-deps'], text=True)
+            '-t', os.path.join(target_dir, 'site-packages')], text=True)
         print(f"Dependencies installed into {os.path.join(target_dir, 'site-packages')}")
 
     @staticmethod

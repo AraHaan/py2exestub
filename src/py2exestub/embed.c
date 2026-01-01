@@ -7,17 +7,6 @@
 #error "Non-Windows systems are not supported at this time."
 #endif
 
-#define DECLARE_MODULE(mod) \
-PyObject *PyInit_##mod(void)
-
-#define APPEND_MODULE(mod) \
-PyImport_AppendInittab(Py_STRINGIFY(mod), PyInit_##mod)
-
-DECLARE_MODULE(_memimporter);
-#if (PY_VERSION_HEX >= 0x030D0000)
-DECLARE_MODULE(audioop);
-#endif
-
 #if (PY_VERSION_HEX < 0x030A0000)
 static int Py_IsNone(PyObject *x) {
     return x == Py_None;
@@ -69,11 +58,6 @@ wmain(int argc, wchar_t **argv) {
   // run in isolated mode
   state->argv_copy[1] = L"-I";
   state->py_args = 2;
-  /* to allow importing of pyd extensions from a zip file in memory. */
-  APPEND_MODULE(_memimporter);
-#if (PY_VERSION_HEX >= 0x030D0000)
-  APPEND_MODULE(audioop);
-#endif
   Py_Initialize();
   result = AddZipExtImportHook();
   if (result < 0) {
