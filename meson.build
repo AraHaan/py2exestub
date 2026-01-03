@@ -1,4 +1,4 @@
-project('py2exestub', 'c')
+project('py2exestub', 'c', version: '0.1.0')
 add_project_arguments(['-D_CRT_SECURE_NO_WARNINGS', '-D_UNICODE', '-DUNICODE'], language: 'c')
 
 py = import('python').find_installation(pure: false)
@@ -74,6 +74,7 @@ py.install_sources(
         'src/py2exestub/__init__.py',
         'src/py2exestub/__main__.py',
         'src/py2exestub/DistBuilder.py',
+        # 'src/py2exestub/_resourceediting.py',
 
         # code that gets copied into the target folder (is data).
         'src/py2exestub/memimport.py',

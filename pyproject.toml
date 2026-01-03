@@ -7,7 +7,7 @@ limited-api = true
 
 [project]
 name = "py2exestub"
-version = "0.1.0"
+dynamic = ['version']
 description = "Embeds Python 3.12+ projects into a single stand alone exe which is actually implemented like an SFX exe."
 requires-python = ">=3.9"
 authors = [
