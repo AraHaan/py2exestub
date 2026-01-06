@@ -1,3 +1,5 @@
+#undef UNICODE
+#undef _UNICODE
 #include <stdio.h>
 #include <Windows.h>
 #include <winuser.h>
@@ -77,7 +79,7 @@ _Success_(return != FALSE) static BOOL ValidateIco(_In_ const BYTE *ico, _In_ si
   grp->idReserved = 0;
   grp->idType = 1;
   grp->idCount = dir->idCount;
-  GRPICONDIRENTRY *gentries = (GRPICONDIRENTRY*)((BYTE*)grp + sizeof(GRPICONDIR));
+  GRPICONDIRENTRY *gentries = (GRPICONDIRENTRY *)((BYTE *)grp + sizeof(GRPICONDIR));
   for (WORD i = 0; i < dir->idCount; ++i) {
     gentries[i].bWidth = entries[i].bWidth;
     gentries[i].bHeight = entries[i].bHeight;
@@ -96,8 +98,37 @@ _Success_(return != FALSE) static BOOL ValidateIco(_In_ const BYTE *ico, _In_ si
   return TRUE;
 }
 
+_Success_(return != 0) static WORD GetCurrentIconCount(_In_ LPCSTR exe_path, _In_ WORD groupId) {
+  WORD count = 0;
+  HMODULE hMod = LoadLibraryExA(exe_path, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+  if (hMod == NULL) {
+    return count;
+  }
+
+  HRSRC hRsrc = FindResourceA(hMod, MAKEINTRESOURCEA(groupId), RT_GROUP_ICON);
+  if (hRsrc == NULL) {
+    FreeLibrary(hMod);
+    return count;
+  }
+
+  HGLOBAL hGlobal = LoadResource(hMod, hRsrc);
+  if (hGlobal == NULL) {
+    FreeLibrary(hMod);
+    return count;
+  }
+  GRPICONDIR *lpGrpIconDir = (GRPICONDIR *)LockResource(hGlobal);
+  if (lpGrpIconDir == NULL) {
+    FreeLibrary(hMod);
+    return count;
+  }
+
+  count = lpGrpIconDir->idCount;
+  FreeLibrary(hMod);
+  return count;
+}
+
 _Success_(return != FALSE) static BOOL ReplaceIconFromIco(
-  _In_ LPCWSTR exe_path,
+  _In_ LPCSTR exe_path,
   _In_ const BYTE *icoBuf,
   _In_ size_t icoSize,
   _In_ WORD groupId, // e.g., 1
@@ -114,90 +145,127 @@ _Success_(return != FALSE) static BOOL ReplaceIconFromIco(
     return FALSE;
   }
   
-  HANDLE h = BeginUpdateResourceW(exe_path, FALSE);
+  HANDLE h = BeginUpdateResourceA(exe_path, FALSE);
   if (!h) {
     free(grp);
     return FALSE;
   }
   
+  // Remove existing RT_ICON images if the new icon has fewer images
+  WORD currentCount = GetCurrentIconCount(exe_path, groupId);
+  if (dir->idCount < currentCount) {
+    for (WORD i = dir->idCount; i < currentCount; i++) {
+      if (!UpdateResourceA(h, RT_ICON, MAKEINTRESOURCEA(firstIconId + i), langId, NULL, 0)) {
+        free(grp);
+        EndUpdateResourceA(h, TRUE);
+        return FALSE;
+      }
+    }
+  }
+
   // Write each image blob as RT_ICON
   for (WORD i = 0; i < dir->idCount; ++i) {
     const BYTE *img = icoBuf + entries[i].dwImageOffset;
     DWORD imgSize = entries[i].dwBytesInRes;
-    if (!UpdateResourceW(h, RT_ICON, MAKEINTRESOURCEW(firstIconId + i), langId, (void *)img, imgSize)) {
+    if (!UpdateResourceA(h, RT_ICON, MAKEINTRESOURCEA(firstIconId + i), langId, (void *)img, imgSize)) {
       free(grp);
-      EndUpdateResourceW(h, TRUE);
+      EndUpdateResourceA(h, TRUE);
       return FALSE;
     }
   }
   
-  BOOL ok = UpdateResourceW(h, RT_GROUP_ICON, MAKEINTRESOURCEW(groupId), langId, grp, (DWORD)grpSize);
+  BOOL ok = UpdateResourceA(h, RT_GROUP_ICON, MAKEINTRESOURCEA(groupId), langId, grp, (DWORD)grpSize);
   free(grp);
   if (!ok) {
-    EndUpdateResourceW(h, TRUE);
+    EndUpdateResourceA(h, TRUE);
     return FALSE;
   }
 
-  if (!EndUpdateResourceW(h, FALSE)) {
+  if (!EndUpdateResourceA(h, FALSE)) {
     return FALSE;
   }
 
   return TRUE;
 }
 
-_Success_(return != FALSE) static BOOL ReplaceResource(_In_ LPCWSTR exe_path, _In_ LPCWSTR resourceType, _In_ WORD resourceID, _In_ LPVOID data, _In_ DWORD size) {
-  HANDLE h = BeginUpdateResourceW(exe_path, FALSE);
+_Success_(return != FALSE) static BOOL ReplaceResource(_In_ LPCSTR exe_path, _In_ LPCSTR resourceType, _In_ WORD resourceID, _In_ LPVOID data, _In_ DWORD size) {
+  HANDLE h = BeginUpdateResourceA(exe_path, FALSE);
   if (!h) {
-    wprintf(L"BeginUpdateResource failed: %lu\n", GetLastError());
+    printf("BeginUpdateResourceA failed: %lu\n", GetLastError());
     return FALSE;
   }
 
-  if (!UpdateResourceW(h, resourceType, MAKEINTRESOURCEW(resourceID), MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), data, size)) {
-    wprintf(L"UpdateResourceW failed: %lu\n", GetLastError());
-    EndUpdateResourceW(h, TRUE);
+  if (!UpdateResourceA(h, resourceType, MAKEINTRESOURCEA(resourceID), MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), data, size)) {
+    printf("UpdateResourceA failed: %lu\n", GetLastError());
+    EndUpdateResourceA(h, TRUE);
     return FALSE;
   }
 
-  if (!EndUpdateResourceW(h, FALSE)) {
-    wprintf(L"EndUpdateResourceW failed: %lu\n", GetLastError());
+  if (!EndUpdateResourceA(h, FALSE)) {
+    printf("EndUpdateResourceA failed: %lu\n", GetLastError());
     return FALSE;
   }
 
   return TRUE;
 }
 
-_Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPWSTR exe_path, _In_ LPWSTR zipFilePath, _In_ LPWSTR iconFilePath, _In_ LPWSTR consoleTitle, _In_ LPWSTR exeArgs, BOOL isStubExe) {
+_Success_(return != 0) static size_t GetStringResourceBufferSize(_In_ WCHAR **strings) {
+  size_t len = (size_t)0;
+  if (strings == NULL) {
+    return len;
+  }
+
+  for (int i = 0; i < 16; i++) {
+    // Each string starts with a WORD length
+    len += sizeof(WORD);
+    if (strings[i]) {
+      // Each string is stored as: WORD length + WCHAR[length]
+      // So total size is sizeof(WORD) + len * sizeof(WCHAR)
+      len += wcslen(strings[i]) * sizeof(WCHAR);
+    }
+  }
+
+  return len;
+}
+
+_Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPSTR exe_path, _In_ LPSTR zipFilePath, _In_ LPSTR iconFilePath, _In_ LPSTR consoleTitle, _In_ LPSTR exeArgs, BOOL isStubExe) {
   if (isStubExe == TRUE) {
-    FILE *zipFile = _wfopen(zipFilePath, L"rb");
-    if (zipFile == NULL) {
-      printf("Failed to open zip file: %s.\n", strerror(errno));
-      return FALSE;
-    }
+    if (zipFilePath != NULL && zipFilePath != "") {
+      FILE *zipFile = fopen(zipFilePath, "rb");
+      if (zipFile == NULL) {
+        printf("Failed to open zip file: %s.\n", strerror(errno));
+        return FALSE;
+      }
 
-    fseek(zipFile, 0, SEEK_END);
-    long zipSize = ftell(zipFile);
-    fseek(zipFile, 0, SEEK_SET);
-    BYTE *zipData = (BYTE *)malloc(zipSize);
-    if (zipData == NULL) {
-      wprintf(L"Failed to allocate memory for ZIP data.\n");
+      fseek(zipFile, 0, SEEK_END);
+      long zipSize = ftell(zipFile);
+      fseek(zipFile, 0, SEEK_SET);
+      BYTE *zipData = (BYTE *)malloc(zipSize);
+      if (zipData == NULL) {
+        printf("Failed to allocate memory for ZIP data.\n");
+        fclose(zipFile);
+        return FALSE;
+      }
+
+      fread(zipData, 1, zipSize, zipFile);
       fclose(zipFile);
-      return FALSE;
-    }
+      if (!ReplaceResource(exe_path, RT_RCDATA, IDR_ZIP1, zipData, (DWORD)zipSize)) {
+        free(zipData);
+        return FALSE;
+      }
 
-    fread(zipData, 1, zipSize, zipFile);
-    fclose(zipFile);
-    if (!ReplaceResource(exe_path, RT_RCDATA, IDR_ZIP1, zipData, (DWORD)zipSize)) {
       free(zipData);
-      return FALSE;
     }
 
-    free(zipData);
-
-    // Build block 1 (IDs 1–16)
+    // Build block 1 (IDs 0–15)
     WCHAR *strings[16] = { 0 };
-    strings[IDS_STRING1] = consoleTitle;     // ID 1
-    strings[IDS_STRING2] = exeArgs;   // ID 2
-    BYTE buffer[1024];
+    strings[IDS_STRING1] = (WCHAR *)malloc((strlen(consoleTitle) + 1) * sizeof(WCHAR));
+    strings[IDS_STRING2] = (WCHAR *)malloc((strlen(exeArgs) + 1) * sizeof(WCHAR));
+    // ID 1
+    MultiByteToWideChar(CP_UTF8, 0, consoleTitle, -1, strings[IDS_STRING1], strlen(exeArgs) + 1);
+    // ID 2
+    MultiByteToWideChar(CP_UTF8, 0, exeArgs, -1, strings[IDS_STRING2], strlen(exeArgs) + 1);
+    BYTE *buffer = (BYTE *)malloc(GetStringResourceBufferSize(strings));
     BYTE *p = buffer;
     for (int i = 0; i < 16; i++) {
       if (strings[i]) {
@@ -215,14 +283,18 @@ _Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPWSTR exe_path, _I
     }
 
     DWORD blockSize = (DWORD)(p - buffer);
-    if (!ReplaceResource(exe_path, RT_STRING, IDS_STRING1, buffer, blockSize)) {
+    BOOL result = ReplaceResource(exe_path, RT_STRING, IDS_STRING1, buffer, blockSize);
+    free(strings[IDS_STRING1]);
+    free(strings[IDS_STRING2]);
+    free(buffer);
+    if (!result) {
       return FALSE;
     }
   }
 
-  FILE *iconFile = _wfopen(iconFilePath, L"rb");
+  FILE *iconFile = fopen(iconFilePath, "rb");
   if (iconFile == NULL) {
-    wprintf(L"Failed to open icon file.\n");
+    printf("Failed to open icon file.\n");
     return FALSE;
   }
 
@@ -231,7 +303,7 @@ _Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPWSTR exe_path, _I
   fseek(iconFile, 0, SEEK_SET);
   BYTE *iconData = (BYTE *)malloc(iconSize);
   if (iconData == NULL) {
-    wprintf(L"Failed to allocate memory for icon data.\n");
+    printf("Failed to allocate memory for icon data.\n");
     fclose(iconFile);
     return FALSE;
   }
@@ -249,13 +321,13 @@ _Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPWSTR exe_path, _I
 
 static PyObject *replace_resources(PyObject *self, PyObject *args)
 {
-  wchar_t *exe_path;
-  wchar_t *zipFilePath;
-  wchar_t *iconFilePath;
-  wchar_t *consoleTitle;
-  wchar_t *exeArgs;
+  char *exe_path;
+  char *zipFilePath;
+  char *iconFilePath;
+  char *consoleTitle;
+  char *exeArgs;
   BOOL isStubExe;
-  if (!PyArg_ParseTuple(args, "uuuuui:replace_resources",
+  if (!PyArg_ParseTuple(args, "zzzzzi:replace_resources",
                         &exe_path,
                         &zipFilePath,
                         &iconFilePath,

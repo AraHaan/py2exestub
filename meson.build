@@ -74,7 +74,6 @@ py.install_sources(
         'src/py2exestub/__init__.py',
         'src/py2exestub/__main__.py',
         'src/py2exestub/DistBuilder.py',
-        # 'src/py2exestub/_resourceediting.py',
 
         # code that gets copied into the target folder (is data).
         'src/py2exestub/memimport.py',
