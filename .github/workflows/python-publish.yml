@@ -1,4 +1,4 @@
-name: CPython
+name: CPython Publish
 
 on:
   push:
@@ -7,33 +7,11 @@ on:
 
 jobs:
   build:
-    continue-on-error: true
-    strategy:
-      matrix:
-        include:
-          # x86 build on x64 host
-          - os: windows-latest
-            pyversion: 3.14
-            arch: x86
-            py_platform_tag: win32
-            py_python_tag: cp314
-            package_version: ${{ GITHUB_REF_NAME }}
-          # x64 build on x64 host
-          - os: windows-latest
-            pyversion: 3.14
-            arch: x64
-            py_platform_tag: win_amd64
-            py_python_tag: cp314
-            package_version: ${{ GITHUB_REF_NAME }}
-          # arm64 build on arm64 host
-          - os: windows-11-arm
-            pyversion: 3.14
-            arch: arm64
-            py_platform_tag: win_arm64
-            py_python_tag: cp314
-            package_version: ${{ GITHUB_REF_NAME }}
+    env:
+      pyversion: 3.14
+      package_version: ${{ github.ref_name }}
 
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-11-arm
     steps:
       - uses: actions/checkout@main
 
@@ -41,33 +19,58 @@ jobs:
         run: get_externals.bat
         shell: cmd
 
-      - name: Setup Python ${{ matrix.pyversion }}
+      - name: Setup Python ${{ env.pyversion }}-x86
+        id: py314x86
         uses: actions/setup-python@main
         with:
-          python-version: ${{ matrix.pyversion }}
-          architecture: ${{ matrix.arch }}
+          python-version: ${{ env.pyversion }}
+          architecture: x86
+          update-environment: false
 
-      - name: Set up Visual Studio shell
+      - name: Setup Python ${{ env.pyversion }}-x64
+        id: py314x64
+        uses: actions/setup-python@main
+        with:
+          python-version: ${{ env.pyversion }}
+          architecture: x64
+          update-environment: false
+
+      - name: Setup Python ${{ env.pyversion }}-arm64
+        id: py314arm64
+        uses: actions/setup-python@main
+        with:
+          python-version: ${{ env.pyversion }}
+          architecture: arm64
+          update-environment: false
+
+      - name: Set up Visual Studio x86 shell
         uses: egor-tensin/vs-shell@master
         with:
-          arch: ${{ matrix.arch }}
+          arch: x86
 
-      - name: Build the project (with sdist and wheel)
+      # Build for all 3 arches on the exes and the C extension for each wheel.
+      - name: Build the exes
         run: |
-          python3 -m pip install --upgrade build wheel meson-python meson ninja
-          python3 -m build --sdist --wheel --no-isolation
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=Win32
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=x64
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=arm64
         shell: pwsh
 
-      - name: retag the wheel
+      - name: Build the sdist and wheel
         run: |
-          wheel tags dist/py2exestub-${{ matrix.package_version }}-${{ matrix.py_python_tag }}-abi3-${{ matrix.py_platform_tag }}.whl --python-tag py3 --abi-tag none --platform-tag ${{ matrix.py_platform_tag }}
-          del dist/py2exestub-${{ matrix.package_version }}-${{ matrix.py_python_tag }}-abi3-${{ matrix.py_platform_tag }}.whl
+          $env:PATH = "${{ env.RUNNER_TOOL_CACHE }}\Python\3.14.2\x86\Scripts;$env:PATH"
+          ${{ steps.py314x86.outputs.python-path }} -m pip install --upgrade build wheel meson-python meson ninja
+          ${{ steps.py314x86.outputs.python-path }} -m build --sdist --wheel --no-isolation
+        shell: pwsh
+
+      - name: Audit the wheels
+        run: ${{ steps.py314arm64.outputs.python-path }} -m audit_wheel
         shell: pwsh
 
       - name: Upload dist folder
         uses: actions/upload-artifact@main
         with:
-          name: release-dists-${{ matrix.arch }}
+          name: release-dists
           path: dist/
 
   pypi-publish:
@@ -87,7 +90,7 @@ jobs:
         uses: actions/download-artifact@main
         with:
           path: dist/
-          pattern: release-dists-*
+          pattern: release-dists
           merge-multiple: true
 
       - name: Publish release distributions to PyPI

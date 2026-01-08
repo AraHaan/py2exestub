@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- Keep this in sync with the GitHub workflows. -->
+    <PythonMajorVersion Condition="'$(PythonMajorVersion)' == ''">3</PythonMajorVersion>
+    <PythonMinorVersion Condition="'$(PythonMinorVersion)' == ''">14</PythonMinorVersion>
+    <PythonPatchVersion Condition="'$(PythonPatchVersion)' == ''">2</PythonPatchVersion>
+    <!-- To grab the pythons installed via setup-python in the CI. -->
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'win32'  AND '$(CI)' != ''">C:\hostedtoolcache\windows\Python\$(PythonMajorVersion).$(PythonMinorVersion).$(PythonPatchVersion)\x86\</PythonInstallDir>
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'amd64'  AND '$(CI)' != ''">C:\hostedtoolcache\windows\Python\$(PythonMajorVersion).$(PythonMinorVersion).$(PythonPatchVersion)\x64\</PythonInstallDir>
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'arm64'  AND '$(CI)' != ''">C:\hostedtoolcache\windows\Python\$(PythonMajorVersion).$(PythonMinorVersion).$(PythonPatchVersion)\arm64\</PythonInstallDir>
+    <!-- When CI is not defined in the environment variables assume local build and assume Python below is installed with the Python Install Manager. -->
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'win32' AND '$(CI)' == ''">$(LocalAppData)\Python\pythoncore-$(PythonMajorVersion).$(PythonMinorVersion)-32\</PythonInstallDir>
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'amd64' AND '$(CI)' == ''">$(LocalAppData)\Python\pythoncore-$(PythonMajorVersion).$(PythonMinorVersion)-64\</PythonInstallDir>
+    <PythonInstallDir Condition="'$(PythonInstallDir)' == '' AND '$(ArchName)' == 'arm64' AND '$(CI)' == ''">$(LocalAppData)\Python\pythoncore-$(PythonMajorVersion).$(PythonMinorVersion)-arm64\</PythonInstallDir>
+    <PythonIncludeDir>$(PythonInstallDir)include\</PythonIncludeDir>
+    <PythonLibDir>$(PythonInstallDir)libs\</PythonLibDir>
+    <PythonDebugSuffix Condition="$(Configuration) == 'Debug'">_d</PythonDebugSuffix>
+    <!-- The version and platform tag to include in .pyd filenames -->
+    <PydTag Condition="'$(ConfigurationType)' == 'DynamicLibrary' AND '$(UsePyLimitedApi)' != 'true' AND $(ArchName) == 'win32'">.cp$(PythonMajorVersion)$(PythonMinorVersion)-win32</PydTag>
+    <PydTag Condition="'$(ConfigurationType)' == 'DynamicLibrary' AND '$(UsePyLimitedApi)' != 'true' AND $(ArchName) == 'arm32'">.cp$(PythonMajorVersion)$(PythonMinorVersion)-win_arm32</PydTag>
+    <PydTag Condition="'$(ConfigurationType)' == 'DynamicLibrary' AND '$(UsePyLimitedApi)' != 'true' AND $(ArchName) == 'arm64'">.cp$(PythonMajorVersion)$(PythonMinorVersion)-win_arm64</PydTag>
+    <PydTag Condition="'$(ConfigurationType)' == 'DynamicLibrary' AND '$(UsePyLimitedApi)' != 'true' AND $(ArchName) == 'amd64'">.cp$(PythonMajorVersion)$(PythonMinorVersion)-win_amd64</PydTag>
+    <TargetName Condition="'$(ConfigurationType)' == 'DynamicLibrary' AND '$(UsePyLimitedApi)' != 'true'">$(ProjectName)$(PythonDebugSuffix)$(PydTag)</TargetName>
+    <!-- Python C extension dlls are pyd's. -->
+    <TargetExt Condition="'$(ConfigurationType)' == 'DynamicLibrary'">.pyd</TargetExt>
+    <Py3CoreLibName Condition="'$(UsePyLimitedApi)' != 'true' OR '$(UsePyBuildCoreModule)' == 'true'">python$(PythonMajorVersion)$(PythonMinorVersion)$(PythonDebugSuffix).lib</Py3CoreLibName>
+    <Py3CoreLibName Condition="'$(UsePyLimitedApi)' == 'true' AND '$(UsePyBuildCoreModule)' != 'true'">python$(PythonMajorVersion)$(PythonDebugSuffix).lib</Py3CoreLibName>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions Condition="'$(UsePyBuildCoreModule)' == 'true'">%(PreprocessorDefinitions);Py_BUILD_CORE_MODULE</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(UsePyLimitedApi)' == 'true' AND '$(UsePyBuildCoreModule)' != 'true'">%(PreprocessorDefinitions);Py_LIMITED_API=0x03090000</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(PythonIncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <!-- Force .lib and .exp into Intermediate Directory -->
+      <ImportLibrary Condition="'$(ConfigurationType)' == 'DynamicLibrary'">$(IntDir)$(TargetName).lib</ImportLibrary>
+      <AdditionalLibraryDirectories>$(PythonLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Propsys.lib;wbemuuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+</Project>

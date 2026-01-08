@@ -14,7 +14,7 @@ typedef struct _stub_state {
   wchar_t exe_path[MAX_LONG_PATH];
   wchar_t exe_args[MAX_PATH];
   wchar_t current_directory[MAX_LONG_PATH];
-  STARTUPINFO si;
+  STARTUPINFOW si;
   PROCESS_INFORMATION pi;
   wchar_t file_path[MAX_LONG_PATH];
   LPWSTR console_title;

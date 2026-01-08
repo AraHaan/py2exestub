@@ -1,11 +1,12 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by Resource.rc
+// Used by embed.rc and stub.rc
 //
 #define IDR_ZIP1                        1
 #define IDI_ICON1                       1
 #define IDS_STRING1                     1
 #define IDS_STRING2                     2
+#define IDV_VERSION1                    1
 
 // Next default values for new objects
 // 

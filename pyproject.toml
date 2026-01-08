@@ -8,7 +8,14 @@ limited-api = true
 [project]
 name = "py2exestub"
 dynamic = ['version']
-description = "Embeds Python 3.12+ projects into a single stand alone exe which is actually implemented like an SFX exe."
+description = """
+Embeds Python 3.12+ projects into a single stand alone exe which is actually implemented like an SFX exe.
+
+Requires the Python Install Manager on Windows to be installed instead of the legacy Python Launcher.
+Also requires that Git for Windows be installed as well and in the PATH.
+Also to build build exes requires to be run under the Visual Studio Developer Shell in order to use msbuild
+in order to build the _memimporter C extension module for the target version of Python.
+"""
 requires-python = ">=3.9"
 authors = [
     { name = "AraHaan" }
