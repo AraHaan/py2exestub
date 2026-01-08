@@ -29,13 +29,12 @@ class DistBuilder:
         return "win32"
 
     @staticmethod
-    def download_and_extract_cpython(version: str, target_dir: str):
+    def download_and_extract_cpython(version: str, target_dir: str, arch: str):
         """
         Downloads the CPython embeddable ZIP for the detected architecture
         and extracts it into the target directory.
         """
         target_dir = os.path.join(target_dir, "build_tmp")
-        arch = DistBuilder.detect_architecture()
         filename = f"python-{version}-embed-{arch}.zip"
         url = f"https://www.python.org/ftp/python/{version}/{filename}"
         os.makedirs(target_dir, exist_ok=True)
@@ -60,11 +59,11 @@ class DistBuilder:
         print(f"Extracted to {target_dir}")
 
     @staticmethod
-    def write_data_files(target_dir: str, program_name: str, stub_name: str):
+    def write_data_files(target_dir: str, program_name: str, stub_name: str, arch: str):
         # use the __file__ filled in by the import system as the package's path.
         files_to_copy = {
-            f'{os.path.dirname(__file__)}/embed.exe': f'{target_dir}/build_tmp/{program_name}.exe',
-            f'{os.path.dirname(__file__)}/stub.exe': f'{target_dir}/{stub_name}.exe',
+            f'{os.path.dirname(__file__)}/embed-{arch}.exe': f'{target_dir}/build_tmp/{program_name}.exe',
+            f'{os.path.dirname(__file__)}/stub-{arch}.exe': f'{target_dir}/{stub_name}.exe',
             f'{os.path.dirname(__file__)}/memimport.py': f'{target_dir}/site-packages/memimport.py',
             f'{os.path.dirname(__file__)}/zipextimporter.py': f'{target_dir}/site-packages/zipextimporter.py',
         }
@@ -75,12 +74,29 @@ class DistBuilder:
             shutil.copy2(src, dst)
 
     @staticmethod
-    def install_requirements(version: str, target_dir: str, requirements_file: str):
+    def install_requirements(version: str, target_dir: str, requirements_file: str, arch: str):
         print(f'Ensuring Python {version} is installed...')
         subprocess.check_output(['py', 'install', version], text=True)
-        subprocess.check_output([
-            'py', f'-{version}', '-m', 'pip', 'install', '--upgrade', '-r', requirements_file,
-            '-t', os.path.join(target_dir, 'site-packages')], text=True)
+        if arch != DistBuilder.detect_architecture():
+            subprocess.check_output([
+                'py', f'-{version}', '-m', 'pip', 'install', '--upgrade', '-r', requirements_file,
+                '-t', os.path.join(target_dir, 'site-packages'),
+                '--platform', f'win_{arch}', '--only-binary=:all:'], text=True)
+            # TODO: install _memimporter from a prebuilt wheel.
+        else:
+            subprocess.check_output([
+                'py', f'-{version}', '-m', 'pip', 'install', '--upgrade', '-r', requirements_file,
+                '-t', os.path.join(target_dir, 'site-packages')], text=True)
+            subprocess.check_output([
+                'py', f'-{version}', '-m', 'pip', 'install', '--upgrade',
+                'git+https://github.com/AraHaan/_memimporter.git',
+                '-t', os.path.join(target_dir, 'tmp-packages')], text=True)
+
+        [path.move_into(os.path.join(target_dir, 'build_tmp'))
+         for path in Path(os.path.join(target_dir, 'tmp-packages')).rglob('*.pyd') if path.is_file()]
+
+        # cleanup the dist-info from the memimporter package
+        shutil.rmtree(os.path.join(target_dir, 'tmp-packages'), ignore_errors=True)
         print(f"Dependencies installed into {os.path.join(target_dir, 'site-packages')}")
 
     @staticmethod
@@ -201,10 +217,15 @@ class DistBuilder:
             default=None,
             help="The path to the requirements.txt file that is used to install site-packages for the embed exe to use."
         )
+        parser.add_argument(
+            "arch",
+            nargs="?",
+            default=DistBuilder.detect_architecture(),
+            help="The architecture to use to embed the program (default: auto-detected from the CPU architecture)")
         args = parser.parse_args()
-        DistBuilder.download_and_extract_cpython(args.version, args.target_dir)
+        DistBuilder.download_and_extract_cpython(args.version, args.target_dir, args.arch)
         if args.package_name and args.console_title and args.icon_file is not None:
-            DistBuilder.write_data_files(args.target_dir, args.package_name, args.console_title)
+            DistBuilder.write_data_files(args.target_dir, args.package_name, args.console_title, args.arch)
             replace_resources(
                 f'{args.target_dir}/build_tmp/{args.package_name}.exe',
                 None,
@@ -213,7 +234,7 @@ class DistBuilder:
                 None,
                 False)
             if args.requirements is not None:
-                DistBuilder.install_requirements(args.version, args.target_dir, args.requirements)
+                DistBuilder.install_requirements(args.version, args.target_dir, args.requirements, args.arch)
 
             DistBuilder._make_zip(
                 args.target_dir,

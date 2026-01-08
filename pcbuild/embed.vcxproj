@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <UsePyLimitedApi>true</UsePyLimitedApi>
+    <ImportCPythonProps>true</ImportCPythonProps>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{44560ec0-a542-4648-9d85-907917f1eae7}</ProjectGuid>
+    <RootNamespace>embed</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="common.props" />
+
+  <ItemGroup>
+    <ClCompile Include="embed.c">
+      <CompileAs>CompileAsC</CompileAs>
+    </ClCompile>
+    <ClInclude Include="resource.h" />
+    <ResourceCompile Include="embed.rc" />
+    <Image Include="python.ico" />
+    <Manifest Include="Program.manifest" />
+  </ItemGroup>
+
+</Project>

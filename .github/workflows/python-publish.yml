@@ -41,16 +41,48 @@ jobs:
         run: get_externals.bat
         shell: cmd
 
-      - name: Setup Python ${{ matrix.pyversion }}
+      - name: Setup Python ${{ matrix.pyversion }}-${{ matrix.arch }}
         uses: actions/setup-python@main
         with:
           python-version: ${{ matrix.pyversion }}
           architecture: ${{ matrix.arch }}
 
+      - name: Setup Python ${{ matrix.pyversion }}-x86
+        if: ${{ matrix.arch }} != x86
+        uses: actions/setup-python@main
+        with:
+          python-version: ${{ matrix.pyversion }}
+          architecture: x86
+          update-environment: false
+
+      - name: Setup Python ${{ matrix.pyversion }}-x64
+        if: ${{ matrix.arch }} != x64
+        uses: actions/setup-python@main
+        with:
+          python-version: ${{ matrix.pyversion }}
+          architecture: x64
+          update-environment: false
+
+      - name: Setup Python ${{ matrix.pyversion }}-arm64
+        if: ${{ matrix.arch }} != arm64
+        uses: actions/setup-python@main
+        with:
+          python-version: ${{ matrix.pyversion }}
+          architecture: arm64
+          update-environment: false
+
       - name: Set up Visual Studio shell
         uses: egor-tensin/vs-shell@master
         with:
           arch: ${{ matrix.arch }}
+
+      # Build for all 3 arches in each wheel on the exes.
+      - name: Build the exes
+        run: |
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=Win32
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=x64
+          msbuild ".\pcbuild\pcbuild.sln" /p:Configuration=Release /p:Platform=arm64
+        shell: pwsh
 
       - name: Build the project (with sdist and wheel)
         run: |

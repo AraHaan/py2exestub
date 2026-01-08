@@ -262,9 +262,9 @@ _Success_(return != FALSE) static BOOL ReplaceResources(_In_ LPSTR exe_path, _In
     strings[IDS_STRING1] = (WCHAR *)malloc((strlen(consoleTitle) + 1) * sizeof(WCHAR));
     strings[IDS_STRING2] = (WCHAR *)malloc((strlen(exeArgs) + 1) * sizeof(WCHAR));
     // ID 1
-    MultiByteToWideChar(CP_UTF8, 0, consoleTitle, -1, strings[IDS_STRING1], strlen(exeArgs) + 1);
+    MultiByteToWideChar(CP_UTF8, 0, consoleTitle, -1, strings[IDS_STRING1], (int)(strlen(exeArgs) + 1));
     // ID 2
-    MultiByteToWideChar(CP_UTF8, 0, exeArgs, -1, strings[IDS_STRING2], strlen(exeArgs) + 1);
+    MultiByteToWideChar(CP_UTF8, 0, exeArgs, -1, strings[IDS_STRING2], (int)(strlen(exeArgs) + 1));
     BYTE *buffer = (BYTE *)malloc(GetStringResourceBufferSize(strings));
     BYTE *p = buffer;
     for (int i = 0; i < 16; i++) {
